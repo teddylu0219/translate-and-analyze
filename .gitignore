@@ -1,5 +1,7 @@
 node_modules/
 out/
 dist/
+src/renderer/public/pdfjs/
+e2e/out/
 *.log
 .DS_Store

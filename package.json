@@ -1,23 +1,24 @@
 {
   "name": "translate-and-analyze",
   "productName": "Translate and Analyze",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "PDF/TXT 翻譯、畫線與逐段分析，使用你的 ChatGPT 方案",
   "author": "teddylu0219",
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "assets": "node scripts/copy-pdfjs-assets.mjs",
+    "dev": "npm run assets && electron-vite dev",
+    "build": "npm run assets && electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dist": "electron-vite build && electron-builder --win --publish never",
-    "release": "electron-vite build && electron-builder --win --publish always"
+    "e2e": "node e2e/run.mjs",
+    "dist": "npm run build && electron-builder --win --publish never",
+    "release": "npm run build && electron-builder --win --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "jose": "^6.2.12"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -27,6 +28,15 @@
     "electron": "^44.9.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
+    "katex": "^0.19.0",
+    "pdfjs-dist": "^6.4.299",
+    "playwright": "^1.64.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
   }
