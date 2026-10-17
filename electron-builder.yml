@@ -1,0 +1,23 @@
+appId: io.github.teddylu0219.translate-and-analyze
+productName: Translate and Analyze
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+win:
+  target: nsis
+  artifactName: TranslateAnalyze-Setup-${version}.${ext}
+nsis:
+  # 一鍵安裝：不問路徑、不需要系統管理員，裝完直接開
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: always
+  shortcutName: Translate and Analyze
+publish:
+  provider: github
+  owner: teddylu0219
+  repo: translate-and-analyze
+  releaseType: release

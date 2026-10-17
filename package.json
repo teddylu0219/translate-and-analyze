@@ -1,0 +1,33 @@
+{
+  "name": "translate-and-analyze",
+  "productName": "Translate and Analyze",
+  "version": "0.0.1",
+  "description": "PDF/TXT 翻譯、畫線與逐段分析，使用你的 ChatGPT 方案",
+  "author": "teddylu0219",
+  "license": "MIT",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dist": "electron-vite build && electron-builder --win --publish never",
+    "release": "electron-vite build && electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
