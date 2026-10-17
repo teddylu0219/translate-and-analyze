@@ -78,6 +78,13 @@ export interface DocData {
   lastPage?: number
 }
 
+export interface ModelInfo {
+  /** 呼叫 API 用的 model（ChatGPT 方案為 slug） */
+  id: string
+  /** 顯示名稱 */
+  name: string
+}
+
 export interface AiMessage {
   role: 'user' | 'assistant'
   text: string

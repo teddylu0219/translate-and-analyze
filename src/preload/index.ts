@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { AiError, AiRequest, AuthStatus, DocData, DocMeta, Settings, UpdateStatus } from '../shared/types'
+import type { AiError, AiRequest, AuthStatus, DocData, DocMeta, ModelInfo, Settings, UpdateStatus } from '../shared/types'
 
 type Result<T> = { ok: true; value: T } | { ok: false; code: string; message: string }
 
@@ -41,7 +41,7 @@ const api = {
   signOut: () => call<AuthStatus>('auth:signOut'),
   setApiKey: (key: string) => call<AuthStatus>('auth:setApiKey', key),
 
-  listModels: () => call<string[]>('ai:models'),
+  listModels: () => call<ModelInfo[]>('ai:models'),
   aiStart: (id: string, req: AiRequest, handlers: AiHandlers): void => {
     aiHandlers.set(id, handlers)
     ipcRenderer.send('ai:start', id, req)

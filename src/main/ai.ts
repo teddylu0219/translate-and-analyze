@@ -2,7 +2,7 @@ import type { WebContents } from 'electron'
 import { AuthError, getAccessToken, getApiKey } from './auth'
 import { getSettings } from './store'
 import { mockStream } from './mock'
-import type { AiError, AiRequest } from '../shared/types'
+import type { AiError, AiRequest, ModelInfo } from '../shared/types'
 
 const API = 'https://api.openai.com/v1'
 const running = new Map<string, AbortController>()
@@ -52,38 +52,57 @@ async function authHeader(forceRefresh = false): Promise<string> {
   return `Bearer ${token}`
 }
 
-export async function listModels(): Promise<string[]> {
-  if (process.env.TA_MOCK_AI) return ['mock-model']
+/**
+ * 列出可用模型。
+ * ChatGPT 方案：回應是 `models` 陣列，只保留 visibility === "list"，保持伺服器順序；
+ * 顯示 display_name，呼叫時用 slug 當 model。
+ * 參考 https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference
+ * API key：一般的 `data` 陣列，用 id。
+ */
+let modelCache: { provider: string; at: number; models: ModelInfo[] } | null = null
+
+/** 換帳號、登出、切換 provider 時清掉，下次重新查 */
+export function clearModelCache(): void {
+  modelCache = null
+}
+
+export async function listModels(force = false): Promise<ModelInfo[]> {
   const { provider } = await getSettings()
+  if (!force && modelCache && modelCache.provider === provider && Date.now() - modelCache.at < 10 * 60_000) return modelCache.models
+  const models = await fetchModels(provider)
+  modelCache = { provider, at: Date.now(), models }
+  return models
+}
+
+async function fetchModels(provider: string): Promise<ModelInfo[]> {
+  if (process.env.TA_MOCK_AI) return [{ id: 'mock-model', name: 'Mock model' }]
   const res = await fetch(`${API}/models`, { headers: { Authorization: await authHeader() } })
   if (!res.ok) {
     const e = await parseHttpError(res)
     throw friendlyError(res.status, e.code, e.message)
   }
   const j = await res.json()
-  const data: { id: string; visibility?: string }[] = j.data ?? []
-  const ids =
-    provider === 'chatgpt'
-      ? data.filter((m) => m.visibility === undefined || m.visibility === 'list').map((m) => m.id)
-      : data.map((m) => m.id).filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id) && !/(audio|realtime|tts|transcribe|image|search|embedding)/.test(id))
-  return ids
+  if (provider === 'chatgpt') {
+    const models: { slug?: string; display_name?: string; visibility?: string }[] = j.models ?? []
+    return models
+      .filter((m) => m.visibility === 'list' && m.slug)
+      .map((m) => ({ id: m.slug!, name: m.display_name || m.slug! }))
+  }
+  const data: { id: string }[] = j.data ?? []
+  return data
+    .map((m) => m.id)
+    .filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id) && !/(audio|realtime|tts|transcribe|image|search|embedding)/.test(id))
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+    .map((id) => ({ id, name: id }))
 }
 
-/** 設定裡沒選模型時，挑一個通用的 GPT 主力模型（避開 codex / mini / nano 等特化或縮小版） */
-export function pickDefaultModel(models: string[]): string | undefined {
-  const general = models.filter((m) => /^gpt-/.test(m) && !/(codex|audio|realtime|image|search|transcribe|tts|oss)/.test(m))
-  const full = general.filter((m) => !/(mini|nano)/.test(m))
-  const byVersion = (list: string[]): string[] =>
-    [...list].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
-  return byVersion(full)[0] ?? byVersion(general)[0] ?? models[0]
-}
-
+/** 設定裡沒選模型時，用清單中的第一個（ChatGPT 方案依伺服器排序） */
 async function resolveModel(): Promise<string> {
   const s = await getSettings()
-  if (s.model) return s.model
-  const model = pickDefaultModel(await listModels())
-  if (!model) throw { code: 'no_models', message: '這個帳號沒有可用的模型。' } satisfies AiError
-  return model
+  const models = await listModels()
+  if (s.model && models.some((m) => m.id === s.model)) return s.model
+  if (!models.length) throw { code: 'no_models', message: '這個帳號沒有可用的模型。' } satisfies AiError
+  return models[0].id
 }
 
 export function cancel(id: string): void {
@@ -200,7 +219,8 @@ async function streamOnce(req: AiRequest, signal: AbortSignal, onDelta: (d: stri
       }
     }
   }
-  return full
+  // 沒收到 response.completed 就結束：連線中斷，不能當成成功
+  throw { code: 'stream_interrupted', message: '連線中斷，回應沒有完成，請再試一次。' } satisfies AiError
 }
 
 export { USAGE_URL }

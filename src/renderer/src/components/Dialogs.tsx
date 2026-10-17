@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Settings, UpdateStatus } from '../../../shared/types'
+import type { ModelInfo, Settings, UpdateStatus } from '../../../shared/types'
 import { useApp } from '../lib/appContext'
 import { MANAGE_USAGE_URL } from '../lib/ai'
 import { LANGS } from '../lib/prompts'
@@ -22,7 +22,7 @@ function Modal({ children, onClose, wide }: { children: React.ReactNode; onClose
 export function SettingsDialog() {
   const { settings, updateSettings, auth, setAuth, openSettings, toast } = useApp()
   const [signingIn, setSigningIn] = useState(false)
-  const [models, setModels] = useState<string[] | null>(null)
+  const [models, setModels] = useState<ModelInfo[] | null>(null)
   const [modelErr, setModelErr] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [version, setVersion] = useState('')
@@ -177,11 +177,12 @@ export function SettingsDialog() {
           <label>模型</label>
           <div className="row">
             <select value={settings.model} onChange={(e) => set({ model: e.target.value })} disabled={!models}>
-              <option value="">自動選擇</option>
+              <option value="">自動（{models?.[0]?.name ?? '清單第一個'}）</option>
               {models?.map((m) => (
-                <option key={m}>{m}</option>
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
               ))}
-              {settings.model && models && !models.includes(settings.model) && <option>{settings.model}</option>}
             </select>
             <button className="btn small" onClick={loadModels} disabled={!providerReady}>
               重新整理

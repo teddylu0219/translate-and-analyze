@@ -83,6 +83,7 @@ function registerIpc(): void {
   ipcMain.handle('settings:update', async (_e, patch: Partial<Settings>) => {
     const s = await updateSettings(patch)
     if (patch.theme) applyTheme(s.theme)
+    if (patch.provider) ai.clearModelCache()
     return s
   })
 
@@ -93,15 +94,28 @@ function registerIpc(): void {
       try {
         return await auth.signIn()
       } finally {
+        ai.clearModelCache()
         focusWindow()
       }
     })
   )
   ipcMain.handle('auth:cancelSignIn', () => auth.cancelSignIn())
-  ipcMain.handle('auth:signOut', wrap(() => auth.signOut()))
-  ipcMain.handle('auth:setApiKey', wrap((key: string) => auth.setApiKey(key)))
+  ipcMain.handle(
+    'auth:signOut',
+    wrap(async () => {
+      ai.clearModelCache()
+      return auth.signOut()
+    })
+  )
+  ipcMain.handle(
+    'auth:setApiKey',
+    wrap(async (key: string) => {
+      ai.clearModelCache()
+      return auth.setApiKey(key)
+    })
+  )
 
-  ipcMain.handle('ai:models', wrap(() => ai.listModels()))
+  ipcMain.handle('ai:models', wrap(() => ai.listModels(true)))
   ipcMain.on('ai:start', (e, id: string, req: AiRequest) => {
     void ai.start(e.sender, id, req)
   })
