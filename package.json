@@ -13,8 +13,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "e2e": "node e2e/run.mjs",
-    "dist": "npm run build && electron-builder --win --publish never",
-    "release": "npm run build && electron-builder --win --publish always"
+    "dist": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

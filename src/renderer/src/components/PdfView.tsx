@@ -249,6 +249,16 @@ function PdfPage({
     return () => io.disconnect()
   }, [root])
 
+  // 離開可視範圍的頁面釋放畫布與文字層，長篇文件才不會吃光記憶體
+  useEffect(() => {
+    if (visible) return
+    if (canvasRef.current) {
+      canvasRef.current.width = 0
+      canvasRef.current.height = 0
+    }
+    textRef.current?.replaceChildren()
+  }, [visible])
+
   useEffect(() => {
     if (!visible) return
     let task: RenderTask | null = null
@@ -259,7 +269,10 @@ function PdfPage({
       if (cancelled) return
       const viewport = page.getViewport({ scale })
       const canvas = canvasRef.current!
-      const ratio = window.devicePixelRatio || 1
+      // 高倍率時限制畫布像素數，避免超過瀏覽器上限而變成空白
+      const maxPixels = 24_000_000
+      const dpr = window.devicePixelRatio || 1
+      const ratio = Math.min(dpr, Math.sqrt(maxPixels / (viewport.width * viewport.height)))
       canvas.width = Math.floor(viewport.width * ratio)
       canvas.height = Math.floor(viewport.height * ratio)
       const ctx = canvas.getContext('2d')!

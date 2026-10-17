@@ -1,6 +1,6 @@
 import type { WebContents } from 'electron'
 import { AuthError, getAccessToken, getApiKey } from './auth'
-import { getSettings, updateSettings } from './store'
+import { getSettings } from './store'
 import { mockStream } from './mock'
 import type { AiError, AiRequest } from '../shared/types'
 
@@ -69,14 +69,21 @@ export async function listModels(): Promise<string[]> {
   return ids
 }
 
-/** 選一個預設模型：設定裡沒選時用清單第一個 */
+/** 設定裡沒選模型時，挑一個通用的 GPT 主力模型（避開 codex / mini / nano 等特化或縮小版） */
+export function pickDefaultModel(models: string[]): string | undefined {
+  const general = models.filter((m) => /^gpt-/.test(m) && !/(codex|audio|realtime|image|search|transcribe|tts|oss)/.test(m))
+  const full = general.filter((m) => !/(mini|nano)/.test(m))
+  const byVersion = (list: string[]): string[] =>
+    [...list].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+  return byVersion(full)[0] ?? byVersion(general)[0] ?? models[0]
+}
+
 async function resolveModel(): Promise<string> {
   const s = await getSettings()
   if (s.model) return s.model
-  const models = await listModels()
-  if (!models.length) throw { code: 'no_models', message: '這個帳號沒有可用的模型。' } satisfies AiError
-  await updateSettings({ model: models[0] })
-  return models[0]
+  const model = pickDefaultModel(await listModels())
+  if (!model) throw { code: 'no_models', message: '這個帳號沒有可用的模型。' } satisfies AiError
+  return model
 }
 
 export function cancel(id: string): void {
