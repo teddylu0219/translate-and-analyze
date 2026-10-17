@@ -1,8 +1,8 @@
-﻿{
+{
   "name": "translate-and-analyze",
   "productName": "Translate and Analyze",
   "version": "0.1.1",
-  "description": "PDF/TXT ç¿»è­¯ã€ç•«ç·šèˆ‡é€æ®µåˆ†æžï¼Œä½¿ç”¨ä½ çš„ ChatGPT æ–¹æ¡ˆ",
+  "description": "PDF/TXT 翻譯、畫線與逐段分析，使用你的 ChatGPT 方案",
   "author": "teddylu0219",
   "license": "MIT",
   "main": "./out/main/index.js",
