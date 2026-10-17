@@ -2,7 +2,9 @@
 
 讀論文的好幫手：打開 PDF 或 TXT，**翻譯、畫線、逐段分析都在同一個畫面**。分析會直接引用原文，點一下就跳回原文對應的位置。AI 使用你自己的 **ChatGPT 方案（Plus / Pro）**，不需要 API key，也不會另外收費。
 
-![閱讀畫面](docs/reader.png)
+![閱讀畫面：左邊原文、右邊逐段譯文與分析](docs/reader.png)
+
+![文件庫](docs/library.png)
 
 ## 下載與安裝（Windows）
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AlertCircle, CheckCircle2, Sparkles, X } from 'lucide-react'
 import type { ModelInfo, Settings, UpdateStatus } from '../../../shared/types'
 import { useApp } from '../lib/appContext'
 import { MANAGE_USAGE_URL } from '../lib/ai'
@@ -82,8 +83,8 @@ export function SettingsDialog() {
     <Modal onClose={() => !signingIn && openSettings(false)} wide>
       <div className="modal-head">
         <h2>設定</h2>
-        <button className="icon-btn" onClick={() => openSettings(false)} disabled={signingIn}>
-          ×
+        <button className="icon-btn" onClick={() => openSettings(false)} disabled={signingIn} title="關閉">
+          <X size={18} />
         </button>
       </div>
 
@@ -325,6 +326,7 @@ export function UpdateBanner() {
   if (s.state !== 'downloaded' || hidden) return null
   return (
     <div className="update-banner">
+      <Sparkles size={15} />
       新版本 v{s.version} 已準備好。
       <button className="btn primary small" onClick={() => window.api.installUpdate()}>
         立即重新啟動更新
@@ -342,7 +344,8 @@ export function Toasts() {
     <div className="toasts">
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind}`}>
-          {t.text}
+          {t.kind === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{t.text}</span>
         </div>
       ))}
     </div>

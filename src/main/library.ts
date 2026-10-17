@@ -76,6 +76,17 @@ export async function rename(id: string, title: string): Promise<void> {
   }
 }
 
+/** 文件庫卡片用的第一頁縮圖（data URL，約 10–30KB） */
+export async function setThumb(id: string, thumb: string): Promise<void> {
+  if (!thumb.startsWith('data:image/') || thumb.length > 300_000) return
+  const index = await readIndex()
+  const meta = index.find((d) => d.id === id)
+  if (meta) {
+    meta.thumb = thumb
+    await writeJson(indexFile(), index)
+  }
+}
+
 export async function remove(id: string): Promise<void> {
   const index = (await readIndex()).filter((d) => d.id !== id)
   await writeJson(indexFile(), index)

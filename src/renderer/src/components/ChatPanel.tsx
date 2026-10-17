@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowUp, MessageSquareText, Quote, Square, Trash2, X } from 'lucide-react'
 import type { ChatMsg } from '../../../shared/types'
 import { useApp } from '../lib/appContext'
 import { MANAGE_USAGE_URL } from '../lib/ai'
@@ -46,8 +47,12 @@ export function ChatPanel(props: Props) {
     <div className="chat-panel">
       <div className="chat-list">
         {!messages.length && !busy && (
-          <div className="empty">
-            針對這份文件提問，AI 會引用原文並標出段落。
+          <div className="empty-hero">
+            <div className="hero-icon">
+              <MessageSquareText size={26} />
+            </div>
+            <h3>問這份文件</h3>
+            <p className="muted">AI 只根據文件回答，並引用原文、標出段落。也可以在原文選取文字後按「提問」。</p>
             <div className="suggest">
               {SUGGESTIONS.map((s) => (
                 <button key={s} className="chip" onClick={() => send(s)}>
@@ -69,59 +74,70 @@ export function ChatPanel(props: Props) {
         ))}
         {busy && (
           <div className="msg msg-assistant">
-            {live ? <RichText text={live} canResolve={props.canResolve} onCite={props.onCite} onQuote={props.onQuote} /> : <span className="muted spin">思考中…</span>}
+            {live ? (
+              <RichText text={live} canResolve={props.canResolve} onCite={props.onCite} onQuote={props.onQuote} />
+            ) : (
+              <span className="typing">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
           </div>
         )}
         <div ref={bottom} />
       </div>
       <div className="composer">
-        {quote && (
-          <div className="quote-chip">
-            <span className="quote-text">「{quote}」</span>
-            <button className="icon-btn" onClick={() => setQuote(null)} title="移除引用">
-              ×
-            </button>
+        <div className="composer-box">
+          {quote && (
+            <div className="quote-chip">
+              <Quote size={13} />
+              <span className="quote-text">{quote}</span>
+              <button className="icon-btn tiny" onClick={() => setQuote(null)} title="移除引用">
+                <X size={13} />
+              </button>
+            </div>
+          )}
+          <textarea
+            ref={inputRef}
+            rows={2}
+            value={input}
+            placeholder={quote ? '針對引用的文字提問…' : '問這份文件任何問題（Enter 送出，Shift+Enter 換行）'}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                send()
+              }
+            }}
+          />
+          <div className="composer-row">
+            {settings?.provider === 'chatgpt' ? (
+              <span className="muted small">
+                使用 ChatGPT 方案・
+                <a href={MANAGE_USAGE_URL} target="_blank" rel="noreferrer">
+                  管理用量
+                </a>
+              </span>
+            ) : (
+              <span className="muted small">使用 OpenAI API key</span>
+            )}
+            <span className="spacer" />
+            {messages.length > 0 && !busy && (
+              <button className="icon-btn tiny" onClick={props.onClear} title="清除對話">
+                <Trash2 size={14} />
+              </button>
+            )}
+            {busy ? (
+              <button className="send-btn" onClick={props.onStop} title="停止">
+                <Square size={12} fill="currentColor" />
+              </button>
+            ) : (
+              <button className="send-btn" disabled={!input.trim()} onClick={() => send()} title="送出">
+                <ArrowUp size={16} />
+              </button>
+            )}
           </div>
-        )}
-        <textarea
-          ref={inputRef}
-          rows={3}
-          value={input}
-          placeholder={quote ? '針對選取的文字提問…' : '輸入問題，Enter 送出，Shift+Enter 換行'}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              send()
-            }
-          }}
-        />
-        <div className="composer-row">
-          {settings?.provider === 'chatgpt' ? (
-            <span className="muted small">
-              使用 ChatGPT 方案・
-              <a href={MANAGE_USAGE_URL} target="_blank" rel="noreferrer">
-                管理用量
-              </a>
-            </span>
-          ) : (
-            <span className="muted small">使用 OpenAI API key</span>
-          )}
-          <span className="spacer" />
-          {messages.length > 0 && !busy && (
-            <button className="link-btn" onClick={props.onClear}>
-              清除對話
-            </button>
-          )}
-          {busy ? (
-            <button className="btn small" onClick={props.onStop}>
-              停止
-            </button>
-          ) : (
-            <button className="btn primary small" disabled={!input.trim()} onClick={() => send()}>
-              送出
-            </button>
-          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
+import { BookOpenText, Download, Highlighter, Languages, MessageSquareText, Pencil, Trash2, type LucideIcon } from 'lucide-react'
 import type { ChatMsg, DocMeta, Highlight, HighlightColor, ParaResult, Rect } from '../../../shared/types'
 import { useApp } from '../lib/appContext'
 import { useDocData } from '../lib/useDocData'
@@ -18,11 +19,11 @@ import { ChatPanel } from './ChatPanel'
 import { HighlightsPanel } from './HighlightsPanel'
 
 type Tab = 'paras' | 'summary' | 'chat' | 'notes'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'paras', label: '逐段翻譯・分析' },
-  { id: 'summary', label: '導讀' },
-  { id: 'chat', label: '問答' },
-  { id: 'notes', label: '畫線筆記' }
+const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
+  { id: 'paras', label: '翻譯・分析', icon: Languages },
+  { id: 'summary', label: '導讀', icon: BookOpenText },
+  { id: 'chat', label: '問答', icon: MessageSquareText },
+  { id: 'notes', label: '筆記', icon: Highlighter }
 ]
 
 const lsGet = (k: string, d: string): string => {
@@ -62,7 +63,7 @@ function chunk(paras: Para[], analyze: boolean): Para[][] {
 
 const newId = (): string => Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 
-export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
+export function Reader({ doc, setHeaderActions }: { doc: DocMeta; setHeaderActions: (n: ReactNode) => void }) {
   const { settings, aiReady, reportAiError, openSettings, toast } = useApp()
   const [data, update] = useDocData(doc.id)
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
@@ -81,12 +82,15 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
   const [flashRange, setFlashRange] = useState<{ paraId: string; start: number; end: number } | null>(null)
   const flashTimer = useRef<number | undefined>(undefined)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [hoverId, setHoverId] = useState<string | null>(null)
+  const [searchSignal, setSearchSignal] = useState(0)
   const [sel, setSel] = useState<SelectionInfo | null>(null)
   const [hlPop, setHlPop] = useState<{ h: Highlight; x: number; y: number } | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
 
   const [live, setLive] = useState<Record<string, ParaResult>>({})
-  const [pending, setPending] = useState<Set<string>>(new Set())
+  /** 等待中的段落 → 是否包含分析 */
+  const [pending, setPending] = useState<Map<string, boolean>>(new Map())
   const [job, setJob] = useState<JobState | null>(null)
   const stopJob = useRef<(() => void) | null>(null)
   const allRuns = useRef(new Set<AiRun>())
@@ -231,7 +235,7 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
     let cancelled = false
     const runs = new Set<AiRun>()
     const ids = targets.map((p) => p.id)
-    setPending((s) => new Set([...s, ...ids]))
+    setPending((s) => new Map([...s, ...ids.map((id) => [id, analyze] as const)]))
     if (asJob) {
       setJob({ analyze, done: 0, total: targets.length })
       stopJob.current = () => {
@@ -272,14 +276,14 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
           allRuns.current.delete(run)
           const gid = new Set(group.map((p) => p.id))
           setLive((l) => Object.fromEntries(Object.entries(l).filter(([k]) => !gid.has(k))))
-          setPending((s) => new Set([...s].filter((k) => !gid.has(k))))
+          setPending((s) => new Map([...s].filter(([k]) => !gid.has(k))))
           if (asJob) setJob((j) => (j ? { ...j, done: j.done + group.length } : j))
         }
       }
     }
     await Promise.all([worker(), worker()])
     // 被停止時，還沒開始的段落也要移出等待中
-    setPending((s) => new Set([...s].filter((k) => !ids.includes(k))))
+    setPending((s) => new Map([...s].filter(([k]) => !ids.includes(k))))
     if (asJob) {
       setJob(null)
       stopJob.current = null
@@ -437,23 +441,43 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
 
   const ready = !!paras && !!data && (doc.type === 'txt' || !!pdf)
 
+  // 頂列的「匯出筆記」按鈕
+  const exportRef = useRef(exportNotes)
+  exportRef.current = exportNotes
+  useEffect(() => {
+    setHeaderActions(
+      ready ? (
+        <button className="btn ghost" onClick={() => void exportRef.current()} title="匯出導讀、畫線、筆記、譯文為 Markdown">
+          <Download size={15} />
+          匯出筆記
+        </button>
+      ) : null
+    )
+    return () => setHeaderActions(null)
+  }, [ready, setHeaderActions])
+
+  // Ctrl+F：搜尋段落
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setTab('paras')
+        setSearchSignal((n) => n + 1)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const hoverRects = useMemo(() => {
+    if (!hoverId || doc.type !== 'pdf') return null
+    const p = paras?.find((x) => x.id === hoverId)
+    return p ? mergeLineRects(p.pieces.map((pc) => pc.rect)) : null
+  }, [hoverId, paras, doc.type])
+
   return (
-    <div className="reader-layout" style={{ gridTemplateColumns: `1fr 6px ${panelW}px` }}>
+    <div className="reader-layout" style={{ gridTemplateColumns: `1fr 5px ${panelW}px` }}>
       <section className="reader-main">
-        <div className="reader-head">
-          <button className="btn ghost" onClick={onBack} title="回到文件庫">
-            ← 文件庫
-          </button>
-          <div className="doc-title" title={doc.title}>
-            {doc.title}
-          </div>
-          <span className="spacer" />
-          {ready && (
-            <button className="btn ghost" onClick={exportNotes} title="匯出導讀、畫線、筆記、譯文為 Markdown">
-              匯出筆記
-            </button>
-          )}
-        </div>
         {loadState.error ? (
           <div className="empty">
             無法開啟這份檔案：{loadState.error}
@@ -461,8 +485,11 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
             檔案可能損毀或有密碼保護。
           </div>
         ) : !ready ? (
-          <div className="empty">
-            正在分析文件結構… {Math.round(loadState.progress * 100)}%
+          <div className="loading">
+            <div className="loading-label">正在分析文件結構…</div>
+            <div className="progress wide">
+              <div style={{ width: `${Math.max(4, Math.round(loadState.progress * 100))}%` }} />
+            </div>
           </div>
         ) : doc.type === 'pdf' ? (
           <PdfView
@@ -471,6 +498,7 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
             paras={paras}
             highlights={data.highlights}
             flash={flash}
+            hover={hoverRects}
             onSelection={(s) => {
               setHlPop(null)
               setSel(s)
@@ -499,8 +527,11 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
         <nav className="tabs">
           {TABS.map((t) => (
             <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+              <t.icon size={15} />
               {t.label}
               {t.id === 'notes' && data?.highlights.length ? <span className="badge">{data.highlights.length}</span> : null}
+              {t.id === 'chat' && liveChat !== null && <span className="live-dot" />}
+              {t.id === 'summary' && liveSummary !== null && <span className="live-dot" />}
             </button>
           ))}
         </nav>
@@ -520,6 +551,8 @@ export function Reader({ doc, onBack }: { doc: DocMeta; onBack: () => void }) {
             pending={pending}
             job={job}
             activeId={activeId}
+            searchSignal={searchSignal}
+            onHover={setHoverId}
             canResolve={canResolve}
             onRunAll={runAll}
             onRunOne={runOne}
@@ -654,10 +687,16 @@ function HighlightPopover({
           <button key={c} className={`swatch sw-${c} ${pop.h.color === c ? 'on' : ''}`} title={COLOR_NAMES[c]} onClick={() => onColor(c)} />
         ))}
         <span className="sep" />
-        <button onClick={onNote}>{pop.h.note ? '編輯筆記' : '加筆記'}</button>
-        <button onClick={onAsk}>問 AI</button>
-        <button className="danger" onClick={onDelete}>
-          刪除
+        <button onClick={onNote}>
+          <Pencil size={14} />
+          {pop.h.note ? '編輯筆記' : '筆記'}
+        </button>
+        <button onClick={onAsk}>
+          <MessageSquareText size={14} />
+          問 AI
+        </button>
+        <button className="danger" onClick={onDelete} title="刪除畫線">
+          <Trash2 size={14} />
         </button>
       </div>
     </div>

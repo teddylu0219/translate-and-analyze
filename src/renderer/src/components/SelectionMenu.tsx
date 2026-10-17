@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Copy, Languages, Lightbulb, MessageSquareText, StickyNote } from 'lucide-react'
 import type { HighlightColor } from '../../../shared/types'
 import { runAI, type AiRun } from '../lib/ai'
 import { selectionTranslateRequest } from '../lib/prompts'
@@ -77,11 +78,18 @@ export function SelectionMenu({ sel, canHighlight, onClose, onHighlight, onExpla
   return (
     <div className="sel-menu" ref={box} style={pos} onMouseUp={(e) => e.stopPropagation()}>
       <div className="sel-actions">
-        <button onClick={translate} disabled={busy}>
-          譯 翻譯
+        <button onClick={translate} disabled={busy} title="翻譯選取的文字">
+          <Languages size={15} />
+          翻譯
         </button>
-        <button onClick={onExplain}>解釋</button>
-        <button onClick={onAsk}>問 AI</button>
+        <button onClick={onExplain} title="請 AI 解釋這段（在問答分頁）">
+          <Lightbulb size={15} />
+          解釋
+        </button>
+        <button onClick={onAsk} title="針對這段提問">
+          <MessageSquareText size={15} />
+          提問
+        </button>
         <span className="sep" />
         {COLORS.map((c) => (
           <button
@@ -93,7 +101,7 @@ export function SelectionMenu({ sel, canHighlight, onClose, onHighlight, onExpla
           />
         ))}
         <button disabled={!canHighlight} onClick={() => onHighlight('yellow', true)} title="畫線並寫筆記">
-          筆記
+          <StickyNote size={15} />
         </button>
         <span className="sep" />
         <button
@@ -104,12 +112,19 @@ export function SelectionMenu({ sel, canHighlight, onClose, onHighlight, onExpla
             onClose()
           }}
         >
-          複製
+          <Copy size={15} />
         </button>
       </div>
       {translation !== null && (
         <div className="sel-result">
-          {translation ? <RichText text={translation} /> : <span className="muted">翻譯中…</span>}
+          {translation ? (
+            <RichText text={translation} />
+          ) : (
+            <div className="skeleton-block">
+              <span className="skeleton" />
+              <span className="skeleton short" />
+            </div>
+          )}
           {!busy && translation && (
             <div className="sel-result-actions">
               <button

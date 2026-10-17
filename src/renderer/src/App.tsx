@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ChevronRight, Settings as SettingsIcon, Upload } from 'lucide-react'
 import type { DocMeta } from '../../shared/types'
 import { AppProvider, useApp } from './lib/appContext'
 import { Library } from './components/Library'
 import { Reader } from './components/Reader'
 import { SettingsDialog, Toasts, UpdateBanner, UsageLimitModal, WelcomeModal } from './components/Dialogs'
+import logo from './assets/logo.png'
 
 export default function App() {
   return (
@@ -18,6 +20,12 @@ function Shell() {
   const [doc, setDoc] = useState<DocMeta | null>(null)
   const [dragging, setDragging] = useState(false)
   const [libKey, setLibKey] = useState(0)
+  const [headerActions, setHeaderActions] = useState<ReactNode>(null)
+
+  useEffect(() => {
+    if (!doc) setHeaderActions(null)
+    document.title = doc ? `${doc.title} — Translate and Analyze` : 'Translate and Analyze'
+  }, [doc])
 
   // 整個視窗都可以拖放檔案
   useEffect(() => {
@@ -67,38 +75,72 @@ function Shell() {
 
   if (!settings) return null
 
+  const account =
+    settings.provider === 'apikey' ? (
+      auth?.apiKeySet ? (
+        <>
+          <span className="status-dot ok" />
+          OpenAI API key
+        </>
+      ) : (
+        <>
+          <span className="status-dot warn" />
+          未設定 API key
+        </>
+      )
+    ) : auth?.signedIn ? (
+      <>
+        <span className="status-dot ok" />
+        {auth.email ?? 'ChatGPT'}
+      </>
+    ) : (
+      <>
+        <span className="status-dot warn" />
+        未登入 ChatGPT
+      </>
+    )
+
   return (
     <div className="app">
       <header className="topbar">
-        <button className="brand" onClick={() => setDoc(null)}>
-          <span className="logo">譯</span> Translate and Analyze
+        <button className="brand no-drag" onClick={() => setDoc(null)} title="回到文件庫">
+          <img src={logo} alt="" className="logo" />
+          {!doc && <span>Translate and Analyze</span>}
+          {doc && <span className="crumb-root">文件庫</span>}
         </button>
+        {doc && (
+          <>
+            <ChevronRight size={14} className="crumb-sep" />
+            <span className="crumb-title" title={doc.title}>
+              {doc.title}
+            </span>
+          </>
+        )}
         <span className="spacer" />
-        <button className="account-chip" onClick={() => openSettings()}>
-          {settings.provider === 'apikey' ? (
-            auth?.apiKeySet ? (
-              'OpenAI API key'
-            ) : (
-              <span className="warn-text">未設定 API key</span>
-            )
-          ) : auth?.signedIn ? (
-            <>
-              <span className="dot-ok" />
-              {auth.email ?? 'ChatGPT'}
-            </>
-          ) : (
-            <span className="warn-text">未登入 ChatGPT</span>
-          )}
-        </button>
-        <button className="icon-btn" title="設定" onClick={() => openSettings()}>
-          ⚙
-        </button>
+        <div className="topbar-actions no-drag">
+          {headerActions}
+          <button className="account-chip" onClick={() => openSettings()} title="帳號與設定">
+            {account}
+          </button>
+          <button className="icon-btn" title="設定" onClick={() => openSettings()}>
+            <SettingsIcon size={17} />
+          </button>
+        </div>
       </header>
       <UpdateBanner />
       <main className="content">
-        {doc ? <Reader key={doc.id} doc={doc} onBack={() => setDoc(null)} /> : <Library onOpen={setDoc} refreshKey={libKey} />}
+        {doc ? (
+          <Reader key={doc.id} doc={doc} setHeaderActions={setHeaderActions} />
+        ) : (
+          <Library onOpen={setDoc} refreshKey={libKey} />
+        )}
       </main>
-      {dragging && <div className="drop-overlay">放開以開啟檔案</div>}
+      {dragging && (
+        <div className="drop-overlay">
+          <Upload size={36} />
+          放開以開啟檔案
+        </div>
+      )}
       {settingsOpen && <SettingsDialog />}
       <WelcomeModal />
       <UsageLimitModal />

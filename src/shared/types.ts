@@ -30,6 +30,7 @@ export interface DocMeta {
   size: number
   addedAt: number
   openedAt: number
+  thumb?: string
 }
 
 /** 位置以頁面寬高的比例表示（0–1），和縮放無關。TXT 文件 page 為 0。 */

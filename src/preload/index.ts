@@ -55,6 +55,7 @@ const api = {
   touchDoc: (id: string) => call<void>('lib:touch', id),
   renameDoc: (id: string, title: string) => call<void>('lib:rename', id, title),
   removeDoc: (id: string) => call<void>('lib:remove', id),
+  setThumb: (id: string, thumb: string) => call<void>('lib:setThumb', id, thumb),
   getDocData: (id: string) => call<DocData>('lib:getData', id),
   saveDocData: (id: string, data: DocData) => call<void>('lib:saveData', id, data),
   exportMarkdown: (title: string, md: string) => call<string | null>('lib:exportMarkdown', title, md),

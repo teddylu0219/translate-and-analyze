@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Highlighter, Pencil, Trash2 } from 'lucide-react'
 import type { Highlight, HighlightColor } from '../../../shared/types'
 import { COLORS, COLOR_NAMES } from './SelectionMenu'
 
@@ -39,7 +40,15 @@ export function HighlightsPanel({ highlights, editId, onJump, onUpdate, onDelete
         </div>
       </div>
       <div className="scroll-body">
-        {!sorted.length && <div className="empty">在原文選取文字後，按顏色按鈕就能畫線；按「筆記」可以加上註記。</div>}
+        {!sorted.length && (
+          <div className="empty-hero">
+            <div className="hero-icon">
+              <Highlighter size={26} />
+            </div>
+            <h3>{highlights.length ? '這個顏色還沒有畫線' : '還沒有畫線'}</h3>
+            <p className="muted">在原文選取文字，點顏色圓點就能畫線；點便條圖示可以同時寫筆記。點已畫的線可以改色或刪除。</p>
+          </div>
+        )}
         {sorted.map((h) => (
           <HighlightItem key={h.id} h={h} autoFocus={h.id === editId} onJump={onJump} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
@@ -112,12 +121,12 @@ function HighlightItem({
           <button key={c} className={`swatch tiny sw-${c} ${h.color === c ? 'on' : ''}`} title={COLOR_NAMES[c]} onClick={() => onUpdate(h.id, { color: c })} />
         ))}
         {!editing && (
-          <button className="link-btn" onClick={() => setEditing(true)}>
-            {h.note ? '編輯筆記' : '加筆記'}
+          <button className="icon-btn tiny" onClick={() => setEditing(true)} title={h.note ? '編輯筆記' : '加筆記'}>
+            <Pencil size={13} />
           </button>
         )}
-        <button className="link-btn danger" onClick={() => onDelete(h.id)}>
-          刪除
+        <button className="icon-btn tiny danger" onClick={() => onDelete(h.id)} title="刪除">
+          <Trash2 size={13} />
         </button>
       </div>
     </div>

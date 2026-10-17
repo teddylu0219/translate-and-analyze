@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from 'electron'
 import { join } from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as auth from './auth'
@@ -12,6 +12,13 @@ if (process.env.TA_USER_DATA) app.setPath('userData', process.env.TA_USER_DATA)
 
 let mainWindow: BrowserWindow | null = null
 
+const TITLEBAR_H = 44
+/** 視窗右上角的系統按鈕顏色要跟畫面頂列一致 */
+const titleBarColors = (): { color: string; symbolColor: string; height: number } =>
+  nativeTheme.shouldUseDarkColors
+    ? { color: '#1d1e22', symbolColor: '#e6e7ea', height: TITLEBAR_H }
+    : { color: '#ffffff', symbolColor: '#2a2b30', height: TITLEBAR_H }
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -19,9 +26,12 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 640,
     show: false,
-    autoHideMenuBar: true,
     title: 'Translate and Analyze',
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1b1a' : '#f7f7f5',
+    // 打包後直接用 exe 的圖示；開發時才指定
+    icon: app.isPackaged ? undefined : join(__dirname, '../../build/icon.png'),
+    titleBarStyle: 'hidden',
+    titleBarOverlay: titleBarColors(),
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#16171a' : '#f4f5f7',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -53,6 +63,13 @@ function createWindow(): void {
 function applyTheme(theme: Settings['theme']): void {
   nativeTheme.themeSource = theme
 }
+
+nativeTheme.on('updated', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setTitleBarOverlay(titleBarColors())
+    mainWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#16171a' : '#f4f5f7')
+  }
+})
 
 function focusWindow(): void {
   if (!mainWindow) return
@@ -137,6 +154,7 @@ function registerIpc(): void {
   ipcMain.handle('lib:read', wrap((id: string) => library.readSource(id)))
   ipcMain.handle('lib:touch', wrap((id: string) => library.touch(id)))
   ipcMain.handle('lib:rename', wrap((id: string, title: string) => library.rename(id, title)))
+  ipcMain.handle('lib:setThumb', wrap((id: string, thumb: string) => library.setThumb(id, thumb)))
   ipcMain.handle('lib:remove', wrap((id: string) => library.remove(id)))
   ipcMain.handle('lib:getData', wrap((id: string) => library.getData(id)))
   ipcMain.handle('lib:saveData', wrap((id: string, data: DocData) => library.saveData(id, data)))
@@ -166,6 +184,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', focusWindow)
 
   app.whenReady().then(async () => {
+    // 不用預設選單：避免 Ctrl+R 重新整理把閱讀狀態清掉、Ctrl+加減號縮放整個介面
+    Menu.setApplicationMenu(null)
     applyTheme((await getSettings()).theme)
     registerIpc()
     createWindow()

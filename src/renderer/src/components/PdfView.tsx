@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { TextLayer, type PDFDocumentProxy, type RenderTask } from 'pdfjs-dist'
+import { MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react'
 import type { Highlight, Rect } from '../../../shared/types'
 import type { Para } from '../lib/paragraphs'
 import { mergeLineRects, type ViewerHandle, type ViewerProps } from './viewer'
@@ -12,8 +13,8 @@ interface PageSize {
 const MIN_SCALE = 0.5
 const MAX_SCALE = 4
 
-export const PdfView = forwardRef<ViewerHandle, ViewerProps & { pdf: PDFDocumentProxy }>(function PdfView(
-  { pdf, paras, highlights, flash, onSelection, onPointClick, initialPage, onPageChange },
+export const PdfView = forwardRef<ViewerHandle, ViewerProps & { pdf: PDFDocumentProxy; hover?: Rect[] | null }>(function PdfView(
+  { pdf, highlights, flash, hover, onSelection, onPointClick, initialPage, onPageChange },
   ref
 ) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -93,8 +94,21 @@ export const PdfView = forwardRef<ViewerHandle, ViewerProps & { pdf: PDFDocument
       e.preventDefault()
       zoom(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1))
     }
+    // Ctrl + / Ctrl - / Ctrl 0 縮放
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      if (e.key === '=' || e.key === '+') zoom(scale * 1.15)
+      else if (e.key === '-') zoom(scale / 1.15)
+      else if (e.key === '0') setFit(true)
+      else return
+      e.preventDefault()
+    }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKey)
+    }
   })
 
   const onScroll = (): void => {
@@ -179,20 +193,20 @@ export const PdfView = forwardRef<ViewerHandle, ViewerProps & { pdf: PDFDocument
   return (
     <div className="pdf-view">
       <div className="viewer-toolbar">
-        <button className="icon-btn" title="縮小（Ctrl + 滾輪）" onClick={() => zoom(scale / 1.15)}>
-          −
-        </button>
-        <span className="zoom-label">{Math.round(scale * 100)}%</span>
-        <button className="icon-btn" title="放大（Ctrl + 滾輪）" onClick={() => zoom(scale * 1.15)}>
-          ＋
-        </button>
-        <button className={`chip ${fit ? 'active' : ''}`} onClick={() => setFit(true)}>
-          符合寬度
+        <div className="tool-group">
+          <button className="icon-btn" title="縮小（Ctrl −）" onClick={() => zoom(scale / 1.15)}>
+            <ZoomOut size={16} />
+          </button>
+          <span className="zoom-label">{Math.round(scale * 100)}%</span>
+          <button className="icon-btn" title="放大（Ctrl ＋）" onClick={() => zoom(scale * 1.15)}>
+            <ZoomIn size={16} />
+          </button>
+        </div>
+        <button className={`icon-btn ${fit ? 'on' : ''}`} title="符合寬度（Ctrl 0）" onClick={() => setFit(true)}>
+          <MoveHorizontal size={16} />
         </button>
         <span className="spacer" />
-        <span className="muted">
-          {page} / {pdf.numPages} 頁
-        </span>
+        <PageJump page={page} total={pdf.numPages} onJump={(n) => pageEls.current[n - 1]?.scrollIntoView({ block: 'start' })} />
       </div>
       <div className="pdf-scroller" ref={scroller} onScroll={onScroll} onMouseUp={handleMouseUp}>
         {scale > 0 &&
@@ -206,6 +220,7 @@ export const PdfView = forwardRef<ViewerHandle, ViewerProps & { pdf: PDFDocument
               root={scroller}
               highlights={highlights.filter((h) => h.rects.some((r) => r.page === i + 1))}
               flash={flash?.filter((r) => r.page === i + 1) ?? []}
+              hover={hover?.filter((r) => r.page === i + 1) ?? []}
               setRef={(el) => (pageEls.current[i] = el)}
             />
           ))}
@@ -222,6 +237,7 @@ function PdfPage({
   root,
   highlights,
   flash,
+  hover,
   setRef
 }: {
   pdf: PDFDocumentProxy
@@ -231,6 +247,7 @@ function PdfPage({
   root: React.RefObject<HTMLDivElement | null>
   highlights: Highlight[]
   flash: Rect[]
+  hover: Rect[]
   setRef: (el: HTMLDivElement | null) => void
 }) {
   const el = useRef<HTMLDivElement | null>(null)
@@ -325,6 +342,9 @@ function PdfPage({
             .filter((r) => r.page === n)
             .map((r, i) => <div key={`${h.id}-${i}`} className={`hl hl-${h.color} ${h.note ? 'has-note' : ''}`} style={rectStyle(r)} />)
         )}
+        {hover.map((r, i) => (
+          <div key={`h${i}`} className="hover-mark" style={rectStyle(r)} />
+        ))}
         {flash.map((r, i) => (
           <div key={`f${i}`} className="flash" style={rectStyle(r)} />
         ))}
@@ -336,6 +356,33 @@ function PdfPage({
         onMouseUp={() => textRef.current?.classList.remove('selecting')}
       />
     </div>
+  )
+}
+
+function PageJump({ page, total, onJump }: { page: number; total: number; onJump: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  return (
+    <span className="page-jump">
+      <input
+        value={draft ?? String(page)}
+        onFocus={(e) => {
+          setDraft(String(page))
+          e.target.select()
+        }}
+        onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            const n = Math.min(total, Math.max(1, Number(draft) || page))
+            onJump(n)
+            ;(e.target as HTMLInputElement).blur()
+          }
+          if (e.key === 'Escape') (e.target as HTMLInputElement).blur()
+        }}
+        title="輸入頁碼後按 Enter 跳頁"
+      />
+      <span className="muted">/ {total}</span>
+    </span>
   )
 }
 

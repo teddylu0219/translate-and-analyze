@@ -62,7 +62,7 @@ await app.evaluate(async ({ BrowserWindow }, { html, pdfPath }) => {
   w.destroy()
 }, { html, pdfPath })
 
-await page.waitForSelector('.lib-head')
+await page.waitForSelector('.library')
 // 第一次登入會顯示方案使用說明
 const gotIt = page.locator('button:has-text("Got it")')
 await gotIt.waitFor({ timeout: 3000 }).then(() => gotIt.click()).catch(() => {})
@@ -128,13 +128,13 @@ console.log('highlight drawn')
 await shot('09-highlight')
 
 // 畫線筆記分頁
-await page.click('.tab:has-text("畫線筆記")')
+await page.click('.tab:has-text("筆記")')
 await page.waitForSelector('.hl-item')
 await shot('10-notes')
 
 // 導讀
 await page.click('.tab:has-text("導讀")')
-await page.click('button:has-text("產生全文導讀")')
+await page.click('button:has-text("產生導讀")')
 await page.waitForSelector('.summary-panel .rich h2', { timeout: 10000 })
 await page.waitForTimeout(1500)
 await shot('11-summary')
@@ -155,7 +155,7 @@ await shot('13-zoom')
 await page.click('button:has-text("文件庫")')
 await page.click('.doc-card:has-text("sample")>> nth=1').catch(() => page.click('.doc-card:has-text("sample") >> nth=0'))
 await page.waitForSelector('.text-article', { timeout: 10000 })
-await page.click('.tab:has-text("逐段翻譯")')
+await page.click('.tab:has-text("翻譯・分析")')
 await shot('14-txt')
 
 // 設定

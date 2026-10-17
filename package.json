@@ -1,7 +1,7 @@
 {
   "name": "translate-and-analyze",
   "productName": "Translate and Analyze",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "PDF/TXT 翻譯、畫線與逐段分析，使用你的 ChatGPT 方案",
   "author": "teddylu0219",
   "license": "MIT",
@@ -28,6 +28,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
     "katex": "^0.19.0",
+    "lucide-react": "^1.59.0",
     "pdfjs-dist": "^6.4.299",
     "playwright": "^1.64.1",
     "react": "^19.3.1",
